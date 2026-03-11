@@ -11,22 +11,27 @@ router = APIRouter(prefix="/inventory", tags=["Inventory"])
 # CREATE - Add a new product
 @router.post("/", response_model=ProductResponse)
 def create_product(product: ProductCreate, db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
-    new_product = Product(**product.model_dump())
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials"
+        )
+    new_product = Product(**product.model_dump(), owner_email=current_user)
     db.add(new_product)
     db.commit()
     db.refresh(new_product)
     return new_product
 
-# READ ALL - Get all products
+# READ ALL - Get only current user's products
 @router.get("/", response_model=List[ProductResponse])
 def get_products(db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
-    products = db.query(Product).all()
+    products = db.query(Product).filter(Product.owner_email == current_user).all()
     return products
 
 # READ ONE - Get a single product by ID
 @router.get("/{product_id}", response_model=ProductResponse)
 def get_product(product_id: int, db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
-    product = db.query(Product).filter(Product.id == product_id).first()
+    product = db.query(Product).filter(Product.id == product_id, Product.owner_email == current_user).first()
     if not product:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -34,10 +39,10 @@ def get_product(product_id: int, db: Session = Depends(get_db), current_user: st
         )
     return product
 
-# UPDATE - Edit a product
+# UPDATE - Edit your own product
 @router.put("/{product_id}", response_model=ProductResponse)
 def update_product(product_id: int, updated: ProductUpdate, db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
-    product = db.query(Product).filter(Product.id == product_id).first()
+    product = db.query(Product).filter(Product.id == product_id, Product.owner_email == current_user).first()
     if not product:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -49,10 +54,10 @@ def update_product(product_id: int, updated: ProductUpdate, db: Session = Depend
     db.refresh(product)
     return product
 
-# DELETE - Remove a product
+# DELETE - Remove your own product
 @router.delete("/{product_id}")
 def delete_product(product_id: int, db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
-    product = db.query(Product).filter(Product.id == product_id).first()
+    product = db.query(Product).filter(Product.id == product_id, Product.owner_email == current_user).first()
     if not product:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
