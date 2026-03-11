@@ -11,3 +11,4 @@ class Product(Base):
     quantity = Column(Integer, nullable=False)
     category = Column(String, nullable=True)
     is_available = Column(Boolean, default=True)
+    owner_email = Column(String, nullable=False)

@@ -25,6 +25,7 @@ class ProductResponse(BaseModel):
     quantity: int
     category: Optional[str]
     is_available: bool
+    owner_email: str
 
     class Config:
         from_attributes = True
